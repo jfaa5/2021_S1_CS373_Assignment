@@ -10,6 +10,44 @@ def createInitializedGreyscalePixelArray(image_width, image_height, initValue = 
     new_array = [[initValue for x in range(image_width)] for y in range(image_height)]
     return new_array
 
+def computeRGBToGreyscale(pixel_array_r, pixel_array_g, pixel_array_b, image_width, image_height):
+    greyscale_pixel_array = createInitializedGreyscalePixelArray(image_width, image_height)
+
+    # STUDENT CODE HERE
+    for i in range(image_height):
+        for j in range(image_width):
+            g = round(0.299 * pixel_array_r[i][j] + 0.587 * pixel_array_g[i][j] + 0.114 * pixel_array_b[i][j])
+            greyscale_pixel_array[i][j] = g
+
+    return greyscale_pixel_array
+
+def scaleTo0And255AndQuantize(pixel_array, image_width, image_height):
+    newPixelArray = createInitializedGreyscalePixelArray(image_width, image_height)
+    minMaxValues = computeMinAndMaxValues(pixel_array, image_width, image_height)
+    for i in range(image_height):
+        for j in range(image_width):
+            if minMaxValues[0] != minMaxValues[1]:
+                k = (pixel_array[i][j] - minMaxValues[0]) * (255 / (minMaxValues[1] - minMaxValues[0]))
+                if k < 0:
+                    newPixelArray[i][j] = 0
+                elif k > 255:
+                    newPixelArray[i][j] = 255
+                else:
+                    newPixelArray[i][j] = round(k)
+            else:
+                newPixelArray[i][j] = 0
+    return newPixelArray
+
+
+def computeMinAndMaxValues(pixel_array, image_width, image_height):
+    tuple_array = [pixel_array[0][0], 0]
+    for i in range(image_height):
+        for j in range(image_width):
+            if pixel_array[i][j] < tuple_array[0]:
+                tuple_array[0] = pixel_array[i][j];
+            if pixel_array[i][j] > tuple_array[1]:
+                tuple_array[1] = pixel_array[i][j];
+    return tuple_array
 
 # this function reads an RGB color png file and returns width, height, as well as pixel arrays for r,g,b
 def readRGBImageToSeparatePixelArrays(input_filename):
@@ -82,8 +120,11 @@ def main():
     # we read in the png file, and receive three pixel arrays for red, green and blue components, respectively
     # each pixel array contains 8 bit integer values between 0 and 255 encoding the color values
     (image_width, image_height, px_array_r, px_array_g, px_array_b) = readRGBImageToSeparatePixelArrays(filename)
-
-    pyplot.imshow(prepareRGBImageForImshowFromIndividualArrays(px_array_r, px_array_g, px_array_b, image_width, image_height))
+    greyscale_pixel_array = computeRGBToGreyscale(px_array_r, px_array_g, px_array_b, image_width, image_height)
+    newPixelArray = scaleTo0And255AndQuantize(greyscale_pixel_array, image_width, image_height)
+    #pyplot.imshow(prepareRGBImageForImshowFromIndividualArrays(px_array_r, px_array_g, px_array_b, image_width, image_height))
+    pyplot.imshow(greyscale_pixel_array, cmap="gray")
+    pyplot.imshow(newPixelArray, cmap="gray")
 
     # get access to the current pyplot figure
     axes = pyplot.gca()
