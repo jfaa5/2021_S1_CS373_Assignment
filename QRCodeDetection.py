@@ -1,6 +1,7 @@
 
 from matplotlib import pyplot
 from matplotlib.patches import Rectangle
+import math
 
 import imageIO.png
 
@@ -176,10 +177,17 @@ def computeGaussianAveraging3x3RepeatBorder(pixel_array, image_width, image_heig
         return mask_array
 
     gaussiankernel = create_gauss_mask(3)
-    # gaussedimage = inputim
-    # for i in range(times):
-    #     gaussedimage = conv2d(gaussedimage,gaussiankernel)
     return conv2d(pixel_array, gaussiankernel, image_width, image_height)
+
+def computeThresholdGE(pixel_array, threshold_value, image_width, image_height):
+    res = createInitializedGreyscalePixelArray(image_width, image_height)
+    for i in range (image_height):
+        for j in range (image_width):
+            if pixel_array[i][j] >= threshold_value:
+                res[i][j]= 255
+            else:
+                res[i][j]= 0
+    return res
     
 
 # This method takes a greyscale pixel array and writes it into a png file
@@ -194,7 +202,7 @@ def writeGreyscalePixelArraytoPNG(output_filename, pixel_array, image_width, ima
 
 def main():
     filename = "./images/covid19QRCode/poster1small.png"
-
+    threshold_value = 70
     # we read in the png file, and receive three pixel arrays for red, green and blue components, respectively
     # each pixel array contains 8 bit integer values between 0 and 255 encoding the color values
     (image_width, image_height, px_array_r, px_array_g, px_array_b) = readRGBImageToSeparatePixelArrays(filename)
@@ -203,6 +211,8 @@ def main():
     resultPixel = computeVerticalEdgesSobelAbsolute(newPixelArray, image_width, image_height)
     horizontal_resultPixel = computeHorizontalEdgesSobelAbsolute(newPixelArray, image_width, image_height)
     edge_magnitude = computeEdgeMagnitude(horizontal_resultPixel,resultPixel,image_width,image_height)
+    gaussian = computeGaussianAveraging3x3RepeatBorder(edge_magnitude, len(edge_magnitude[0]),len(edge_magnitude))
+    threshold = computeThresholdGE(gaussian, threshold_value, len(gaussian[0]),len(gaussian))
     #pyplot.imshow(prepareRGBImageForImshowFromIndividualArrays(px_array_r, px_array_g, px_array_b, image_width, image_height))
 
     pyplot.imshow(greyscale_pixel_array, cmap="gray")
@@ -210,6 +220,8 @@ def main():
     pyplot.imshow(resultPixel, cmap="gray")
     pyplot.imshow(horizontal_resultPixel, cmap="gray")
     pyplot.imshow(edge_magnitude, cmap="gray")
+    pyplot.imshow(gaussian, cmap="gray")
+    pyplot.imshow(threshold, cmap="gray")
     # get access to the current pyplot figure
     axes = pyplot.gca()
     # create a 70x50 rectangle that starts at location 10,30, with a line width of 3
