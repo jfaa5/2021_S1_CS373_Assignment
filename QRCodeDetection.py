@@ -4,7 +4,6 @@ from matplotlib.patches import Rectangle
 
 import imageIO.png
 
-
 def createInitializedGreyscalePixelArray(image_width, image_height, initValue = 0):
 
     new_array = [[initValue for x in range(image_width)] for y in range(image_height)]
@@ -38,6 +37,20 @@ def scaleTo0And255AndQuantize(pixel_array, image_width, image_height):
                 newPixelArray[i][j] = 0
     return newPixelArray
 
+def computeEdgeMagnitude(px_x_sobeled,px_y_sobeled,image_width,image_height):
+    edge_magnitude = []
+    for i in range(0,len(px_x_sobeled)):
+        edge_magnitude_line = []
+        for j in range(0,len(px_x_sobeled[0])):
+            if px_x_sobeled[i][j] < 3 or px_y_sobeled[i][j] < 3: sumvalue = 0
+            else: sumvalue = px_x_sobeled[i][j]+px_y_sobeled[i][j]
+            if sumvalue < 0: sumvalue = 0
+            elif sumvalue > 255: sumvalue = 255
+            edge_magnitude_line.append(px_x_sobeled[i][j]+px_y_sobeled[i][j])
+        edge_magnitude.append(edge_magnitude_line)
+    return edge_magnitude
+
+
 
 def computeMinAndMaxValues(pixel_array, image_width, image_height):
     tuple_array = [pixel_array[0][0], 0]
@@ -48,6 +61,28 @@ def computeMinAndMaxValues(pixel_array, image_width, image_height):
             if pixel_array[i][j] > tuple_array[1]:
                 tuple_array[1] = pixel_array[i][j];
     return tuple_array
+
+def computeVerticalEdgesSobelAbsolute(pixel_array, image_width, image_height):
+    resultPixel = [[0  for x in range(image_width)] for y in range(image_height)]
+
+    for i in range (1, image_height -1):
+        for j in range (1, image_width -1):
+            resultPixel[i][j] = pixel_array[i-1][j-1]+ pixel_array[i][j-1]*2 +pixel_array[i+1][j-1] - (pixel_array[i-1][j+1] + pixel_array[i][j+1]*2 + pixel_array[i+1][j+1])
+            resultPixel[i][j] /= 8
+            resultPixel[i][j] = abs(resultPixel[i][j])
+    return resultPixel
+
+
+def computeHorizontalEdgesSobelAbsolute(pixel_array, image_width, image_height):
+    horizontal_resultPixel = [[0 for x in range(image_width)] for y in range(image_height)]
+
+    for i in range(1, image_height - 1):
+        for j in range(1, image_width - 1):
+            horizontal_resultPixel[i][j] = pixel_array[i - 1][j - 1] + pixel_array[i - 1][j] * 2 + pixel_array[i - 1][j + 1] - (
+                        pixel_array[i + 1][j - 1] + pixel_array[i + 1][j] * 2 + pixel_array[i + 1][j + 1])
+            horizontal_resultPixel[i][j] /= 8
+            horizontal_resultPixel[i][j] = abs(horizontal_resultPixel[i][j])
+    return horizontal_resultPixel
 
 # this function reads an RGB color png file and returns width, height, as well as pixel arrays for r,g,b
 def readRGBImageToSeparatePixelArrays(input_filename):
@@ -102,6 +137,49 @@ def prepareRGBImageForImshowFromIndividualArrays(r,g,b,w,h):
             row.append(triple)
         rgbImage.append(row)
     return rgbImage
+
+def conv2d(inputim, fliter, width, height):
+    # height, width = len(inputim), len(inputim[0])
+    heightf, widthf = len(fliter), len(fliter[0])
+    new_height = height - heightf + 1
+    new_width = width - widthf + 1
+    new_image = []
+    for i in range(0,new_height):
+        new_image_line = []
+        for j in range(0,new_width):
+            sumconv = 0.0
+            for x in range(0,heightf):
+                for y in range(0,widthf):
+                    sumconv+=inputim[i+x][j+y]*fliter[x][y]
+            if sumconv < 0: sumconv = 0
+            elif sumconv > 255: sumconv = 255
+            else: sumconv = int(sumconv)
+            new_image_line.append(sumconv)
+        new_image.append(new_image_line)
+    return new_image
+
+def computeGaussianAveraging3x3RepeatBorder(pixel_array, image_width, image_height):
+    def create_gauss_mask(sigma):
+        mask_height = mask_width = sigma * 2 + 1
+        mask_array = createInitializedGreyscalePixelArray(mask_width, mask_height)
+
+        sumvalue = 0.0
+        for i in range(-sigma, sigma + 1):
+            for j in range(-sigma, sigma + 1):
+                mask_array[i + sigma][j + sigma] = math.exp(-0.5 * (i ** 2 + j ** 2) / sigma ** 2)
+                sumvalue += mask_array[i + sigma][j + sigma]
+
+        for i in range(0, len(mask_array)):
+            for j in range(0, len(mask_array[0])):
+                mask_array[i][j] /= sumvalue
+
+        return mask_array
+
+    gaussiankernel = create_gauss_mask(3)
+    # gaussedimage = inputim
+    # for i in range(times):
+    #     gaussedimage = conv2d(gaussedimage,gaussiankernel)
+    return conv2d(pixel_array, gaussiankernel, image_width, image_height)
     
 
 # This method takes a greyscale pixel array and writes it into a png file
@@ -122,10 +200,16 @@ def main():
     (image_width, image_height, px_array_r, px_array_g, px_array_b) = readRGBImageToSeparatePixelArrays(filename)
     greyscale_pixel_array = computeRGBToGreyscale(px_array_r, px_array_g, px_array_b, image_width, image_height)
     newPixelArray = scaleTo0And255AndQuantize(greyscale_pixel_array, image_width, image_height)
+    resultPixel = computeVerticalEdgesSobelAbsolute(newPixelArray, image_width, image_height)
+    horizontal_resultPixel = computeHorizontalEdgesSobelAbsolute(newPixelArray, image_width, image_height)
+    edge_magnitude = computeEdgeMagnitude(horizontal_resultPixel,resultPixel,image_width,image_height)
     #pyplot.imshow(prepareRGBImageForImshowFromIndividualArrays(px_array_r, px_array_g, px_array_b, image_width, image_height))
+
     pyplot.imshow(greyscale_pixel_array, cmap="gray")
     pyplot.imshow(newPixelArray, cmap="gray")
-
+    pyplot.imshow(resultPixel, cmap="gray")
+    pyplot.imshow(horizontal_resultPixel, cmap="gray")
+    pyplot.imshow(edge_magnitude, cmap="gray")
     # get access to the current pyplot figure
     axes = pyplot.gca()
     # create a 70x50 rectangle that starts at location 10,30, with a line width of 3
