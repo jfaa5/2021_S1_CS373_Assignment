@@ -10,33 +10,42 @@ def createInitializedGreyscalePixelArray(image_width, image_height, initValue = 
     new_array = [[initValue for x in range(image_width)] for y in range(image_height)]
     return new_array
 
+#Computes the greyscale representation of the color channels
 def computeRGBToGreyscale(pixel_array_r, pixel_array_g, pixel_array_b, image_width, image_height):
     greyscale_pixel_array = createInitializedGreyscalePixelArray(image_width, image_height)
-
-    # STUDENT CODE HERE
     for i in range(image_height):
         for j in range(image_width):
             g = round(0.299 * pixel_array_r[i][j] + 0.587 * pixel_array_g[i][j] + 0.114 * pixel_array_b[i][j])
             greyscale_pixel_array[i][j] = g
-
     return greyscale_pixel_array
 
 def scaleTo0And255AndQuantize(pixel_array, image_width, image_height):
-    newPixelArray = createInitializedGreyscalePixelArray(image_width, image_height)
+    contrastArray = createInitializedGreyscalePixelArray(image_width, image_height)
     minMaxValues = computeMinAndMaxValues(pixel_array, image_width, image_height)
     for i in range(image_height):
         for j in range(image_width):
             if minMaxValues[0] != minMaxValues[1]:
                 k = (pixel_array[i][j] - minMaxValues[0]) * (255 / (minMaxValues[1] - minMaxValues[0]))
                 if k < 0:
-                    newPixelArray[i][j] = 0
+                    contrastArray[i][j] = 0
                 elif k > 255:
-                    newPixelArray[i][j] = 255
+                    contrastArray[i][j] = 255
                 else:
-                    newPixelArray[i][j] = round(k)
+                    contrastArray[i][j] = round(k)
             else:
-                newPixelArray[i][j] = 0
-    return newPixelArray
+                contrastArray[i][j] = 0
+    return contrastArray
+
+#Returns smallest and largest value of a pixel array image
+def computeMinAndMaxValues(pixel_array, image_width, image_height):
+    tuple_array = [pixel_array[0][0], 0]
+    for i in range(image_height):
+        for j in range(image_width):
+            if pixel_array[i][j] < tuple_array[0]:
+                tuple_array[0] = pixel_array[i][j];
+            if pixel_array[i][j] > tuple_array[1]:
+                tuple_array[1] = pixel_array[i][j];
+    return tuple_array
 
 def computeEdgeMagnitude(px_x_sobeled,px_y_sobeled,image_width,image_height):
     edge_magnitude = []
@@ -51,39 +60,26 @@ def computeEdgeMagnitude(px_x_sobeled,px_y_sobeled,image_width,image_height):
         edge_magnitude.append(edge_magnitude_line)
     return edge_magnitude
 
-
-
-def computeMinAndMaxValues(pixel_array, image_width, image_height):
-    tuple_array = [pixel_array[0][0], 0]
-    for i in range(image_height):
-        for j in range(image_width):
-            if pixel_array[i][j] < tuple_array[0]:
-                tuple_array[0] = pixel_array[i][j];
-            if pixel_array[i][j] > tuple_array[1]:
-                tuple_array[1] = pixel_array[i][j];
-    return tuple_array
-
+#Computes and returns an image of the vertical edges.
 def computeVerticalEdgesSobelAbsolute(pixel_array, image_width, image_height):
-    resultPixel = [[0  for x in range(image_width)] for y in range(image_height)]
-
+    verticalEdge = [[0  for x in range(image_width)] for y in range(image_height)]
     for i in range (1, image_height -1):
         for j in range (1, image_width -1):
-            resultPixel[i][j] = pixel_array[i-1][j-1]+ pixel_array[i][j-1]*2 +pixel_array[i+1][j-1] - (pixel_array[i-1][j+1] + pixel_array[i][j+1]*2 + pixel_array[i+1][j+1])
-            resultPixel[i][j] /= 8
-            resultPixel[i][j] = abs(resultPixel[i][j])
-    return resultPixel
+            verticalEdge[i][j] = pixel_array[i-1][j-1]+ pixel_array[i][j-1]*2 +pixel_array[i+1][j-1] - (pixel_array[i-1][j+1] + pixel_array[i][j+1]*2 + pixel_array[i+1][j+1])
+            verticalEdge[i][j] /= 8
+            verticalEdge[i][j] = abs(verticalEdge[i][j])
+    return verticalEdge
 
-
+#Computes and returns an image of the vertical edges.
 def computeHorizontalEdgesSobelAbsolute(pixel_array, image_width, image_height):
-    horizontal_resultPixel = [[0 for x in range(image_width)] for y in range(image_height)]
-
+    horiztonalEdge = [[0 for x in range(image_width)] for y in range(image_height)]
     for i in range(1, image_height - 1):
         for j in range(1, image_width - 1):
-            horizontal_resultPixel[i][j] = pixel_array[i - 1][j - 1] + pixel_array[i - 1][j] * 2 + pixel_array[i - 1][j + 1] - (
+            horiztonalEdge[i][j] = pixel_array[i - 1][j - 1] + pixel_array[i - 1][j] * 2 + pixel_array[i - 1][j + 1] - (
                         pixel_array[i + 1][j - 1] + pixel_array[i + 1][j] * 2 + pixel_array[i + 1][j + 1])
-            horizontal_resultPixel[i][j] /= 8
-            horizontal_resultPixel[i][j] = abs(horizontal_resultPixel[i][j])
-    return horizontal_resultPixel
+            horiztonalEdge[i][j] /= 8
+            horiztonalEdge[i][j] = abs(horiztonalEdge[i][j])
+    return horiztonalEdge
 
 # this function reads an RGB color png file and returns width, height, as well as pixel arrays for r,g,b
 def readRGBImageToSeparatePixelArrays(input_filename):
@@ -139,45 +135,16 @@ def prepareRGBImageForImshowFromIndividualArrays(r,g,b,w,h):
         rgbImage.append(row)
     return rgbImage
 
-def conv2d(inputim, fliter, width, height):
-    # height, width = len(inputim), len(inputim[0])
-    heightf, widthf = len(fliter), len(fliter[0])
-    new_height = height - heightf + 1
-    new_width = width - widthf + 1
-    new_image = []
-    for i in range(0,new_height):
-        new_image_line = []
-        for j in range(0,new_width):
-            sumconv = 0.0
-            for x in range(0,heightf):
-                for y in range(0,widthf):
-                    sumconv+=inputim[i+x][j+y]*fliter[x][y]
-            if sumconv < 0: sumconv = 0
-            elif sumconv > 255: sumconv = 255
-            else: sumconv = int(sumconv)
-            new_image_line.append(sumconv)
-        new_image.append(new_image_line)
-    return new_image
-
-def computeGaussianAveraging3x3RepeatBorder(pixel_array, image_width, image_height):
-    def create_gauss_mask(sigma):
-        mask_height = mask_width = sigma * 2 + 1
-        mask_array = createInitializedGreyscalePixelArray(mask_width, mask_height)
-
-        sumvalue = 0.0
-        for i in range(-sigma, sigma + 1):
-            for j in range(-sigma, sigma + 1):
-                mask_array[i + sigma][j + sigma] = math.exp(-0.5 * (i ** 2 + j ** 2) / sigma ** 2)
-                sumvalue += mask_array[i + sigma][j + sigma]
-
-        for i in range(0, len(mask_array)):
-            for j in range(0, len(mask_array[0])):
-                mask_array[i][j] /= sumvalue
-
-        return mask_array
-
-    gaussiankernel = create_gauss_mask(3)
-    return conv2d(pixel_array, gaussiankernel, image_width, image_height)
+# Computes & returns a mean (or average, or box) filtered image.
+def computeBoxAveraging3x3(pixel_array, image_width, image_height):
+    newBoxAverage = [[0 for x in range(image_width)] for y in range(image_height)]
+    for i in range(1, image_height - 1):
+        for j in range(1, image_width - 1):
+            for k in range(i - 1, i + 2):
+                for l in range(j - 1, j + 2):
+                    newBoxAverage[i][j] += pixel_array[k][l]
+            newBoxAverage[i][j] /= 9
+    return newBoxAverage
 
 def computeThresholdGE(pixel_array, threshold_value, image_width, image_height):
     res = createInitializedGreyscalePixelArray(image_width, image_height)
@@ -207,21 +174,26 @@ def main():
     # each pixel array contains 8 bit integer values between 0 and 255 encoding the color values
     (image_width, image_height, px_array_r, px_array_g, px_array_b) = readRGBImageToSeparatePixelArrays(filename)
     greyscale_pixel_array = computeRGBToGreyscale(px_array_r, px_array_g, px_array_b, image_width, image_height)
-    newPixelArray = scaleTo0And255AndQuantize(greyscale_pixel_array, image_width, image_height)
-    resultPixel = computeVerticalEdgesSobelAbsolute(newPixelArray, image_width, image_height)
-    horizontal_resultPixel = computeHorizontalEdgesSobelAbsolute(newPixelArray, image_width, image_height)
-    edge_magnitude = computeEdgeMagnitude(horizontal_resultPixel,resultPixel,image_width,image_height)
-    gaussian = computeGaussianAveraging3x3RepeatBorder(edge_magnitude, len(edge_magnitude[0]),len(edge_magnitude))
-    threshold = computeThresholdGE(gaussian, threshold_value, len(gaussian[0]),len(gaussian))
+    contrastArray = scaleTo0And255AndQuantize(greyscale_pixel_array, image_width, image_height)
+    verticalEdge = computeVerticalEdgesSobelAbsolute(contrastArray, image_width, image_height)
+    horiztonalEdge = computeHorizontalEdgesSobelAbsolute(contrastArray, image_width, image_height)
+    edge_magnitude = computeEdgeMagnitude(horiztonalEdge,verticalEdge,image_width,image_height)
+    print("Sorry! The box average takes some time to generate!")
+    boxAverage = computeBoxAveraging3x3(edge_magnitude, len(edge_magnitude[0]), len(edge_magnitude))
+    for i in range(9): #I iterated 9 times to render it to the correct image, don't know if implemented correctly
+        boxAverage = computeBoxAveraging3x3(boxAverage, len(boxAverage[0]), len(boxAverage))
+    reContrastArray = scaleTo0And255AndQuantize(boxAverage, len(boxAverage[0]),len(boxAverage))
+    threshold = computeThresholdGE(reContrastArray, threshold_value, len(reContrastArray[0]),len(reContrastArray))
+
+    pyplot.imshow(greyscale_pixel_array, cmap="gray") #Step 1: read the input image, convertRGB data to greyscale and stretchthe values to lie between 0 and 255
+    pyplot.imshow(contrastArray, cmap="gray") #Step 5: stretch contrast to 0 and 255
+    pyplot.imshow(verticalEdge, cmap="gray") #Step 3: compute vertical edges
+    pyplot.imshow(horiztonalEdge, cmap="gray") #Step 2: compute horizontal edges
+    pyplot.imshow(edge_magnitude, cmap="gray") #Step 4: compute Edge magnitude
+    pyplot.imshow(boxAverage, cmap="gray") #Step 5: smooth over the edgemagnitude (mean or Gaussain)
+    pyplot.imshow(threshold, cmap="gray") #Step 6: perform a thresholding operation
     #pyplot.imshow(prepareRGBImageForImshowFromIndividualArrays(px_array_r, px_array_g, px_array_b, image_width, image_height))
 
-    pyplot.imshow(greyscale_pixel_array, cmap="gray")
-    pyplot.imshow(newPixelArray, cmap="gray")
-    pyplot.imshow(resultPixel, cmap="gray")
-    pyplot.imshow(horizontal_resultPixel, cmap="gray")
-    pyplot.imshow(edge_magnitude, cmap="gray")
-    pyplot.imshow(gaussian, cmap="gray")
-    pyplot.imshow(threshold, cmap="gray")
     # get access to the current pyplot figure
     axes = pyplot.gca()
     # create a 70x50 rectangle that starts at location 10,30, with a line width of 3
@@ -231,7 +203,6 @@ def main():
 
     # plot the current figure
     pyplot.show()
-
 
 
 if __name__ == "__main__":
